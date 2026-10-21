@@ -1,0 +1,42 @@
+{
+  "name": "opencode-notify-plugin",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "index.ts",
+  "files": [
+    "index.ts",
+    "src"
+  ],
+  "license": "MIT",
+  "description": "OpenCode 插件：会话完成、等待回答或等待授权时发系统通知",
+  "author": "micaiguai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/micaiguai/opencode-notify-plugin.git"
+  },
+  "homepage": "https://github.com/micaiguai/opencode-notify-plugin#readme",
+  "bugs": {
+    "url": "https://github.com/micaiguai/opencode-notify-plugin/issues"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "notifications",
+    "toast"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "preview": "node scripts/preview.ts",
+    "prepublishOnly": "npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "@opencode/client": "2.1.2",
+    "@opencode/plugin": "2.1.2",
+    "@types/node": "^24.12.0",
+    "typescript": "^5.9.0"
+  }
+}
