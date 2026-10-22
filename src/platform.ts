@@ -12,6 +12,8 @@ export interface CommandSpec {
 export interface BuildOptions {
   readonly platform: NodeJS.Platform
   readonly sound: boolean
+  /** 让通知留在屏幕上直到用户处理。macOS 没有对应 API，忽略。 */
+  readonly sticky?: boolean
 }
 
 export const MAX_TITLE = 80
@@ -66,12 +68,15 @@ export function clip(text: string, max: number): string {
   return `${out}…`
 }
 
-export function buildToastXml(notification: Notification, sound: boolean): string {
+export function buildToastXml(notification: Notification, sound: boolean, sticky = false): string {
   const title = escapeXml(clip(notification.title, MAX_TITLE))
   const body = escapeXml(clip(notification.body, MAX_BODY))
   const audio = sound ? "" : '<audio silent="true"/>'
+  // reminder 是驻留型场景：不点掉就一直留在屏幕上。代价是能绕过勿扰模式，
+  // 所以只在显式开启 sticky 时才用，默认仍是一次性 toast。
+  const scenario = sticky ? ' scenario="reminder"' : ""
   return (
-    '<toast activationType="foreground">' +
+    `<toast activationType="foreground"${scenario}>` +
     '<visual><binding template="ToastGeneric">' +
     `<text>${title}</text><text>${body}</text>` +
     "</binding></visual>" +
@@ -97,7 +102,7 @@ export function buildCommands(notification: Notification, options: BuildOptions)
         encodePowerShell(POWERSHELL_SCRIPT),
       ] as const
       const env = {
-        OPENCODE_NOTIFY_XML: buildToastXml(notification, options.sound),
+        OPENCODE_NOTIFY_XML: buildToastXml(notification, options.sound, options.sticky),
         OPENCODE_NOTIFY_APP_ID: WINDOWS_APP_ID,
       }
       // 用 cmd 的 start 把 powershell 甩到独立进程：`opencode run` 一轮结束后立刻退出，
@@ -111,6 +116,7 @@ export function buildCommands(notification: Notification, options: BuildOptions)
     case "darwin":
       // 用 argv 传值，避免把标题拼进 AppleScript 源码里做转义。
       // 声音名也走 argv：多传一个参数就有声、少传就静音，不必拼两套脚本源码。
+      // sticky 在这里无效：osascript 没有让横幅驻留的 API，只能靠系统通知样式。
       return [
         {
           file: "osascript",
@@ -136,6 +142,8 @@ export function buildCommands(notification: Notification, options: BuildOptions)
         },
       ]
     case "linux":
+      // -t 0 请求「不自动过期」，但最终由通知守护进程决定：dunst 会真的常驻，
+      // 部分实现会忽略 0 退回默认时长，属于尽力而为。
       return [
         {
           file: "notify-send",
@@ -144,6 +152,7 @@ export function buildCommands(notification: Notification, options: BuildOptions)
             "opencode",
             "-u",
             "normal",
+            ...(options.sticky ? ["-t", "0"] : []),
             clip(notification.title, MAX_TITLE),
             clip(notification.body, MAX_BODY),
           ],

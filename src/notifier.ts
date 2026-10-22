@@ -5,6 +5,7 @@ export type Runner = (command: CommandSpec, timeoutMs: number) => Promise<boolea
 
 export interface NotifierOptions {
   readonly sound?: boolean
+  readonly sticky?: boolean
   readonly platform?: NodeJS.Platform
   readonly run?: Runner
   readonly log?: (message: string, error?: unknown) => void
@@ -52,15 +53,22 @@ export interface Notifier {
 export function createNotifier(options: NotifierOptions = {}): Notifier {
   const platform = options.platform ?? process.platform
   const sound = options.sound ?? true
+  const sticky = options.sticky ?? false
   const run = options.run ?? spawnRunner
   const log = options.log ?? defaultLog
   const timeoutMs = options.timeoutMs ?? 5_000
 
   let queue: Promise<void> = Promise.resolve()
   let warnedMissingCommand = false
+  let warnedStickyUnsupported = false
 
   const deliver = async (notification: Notification) => {
-    const commands = buildCommands(notification, { platform, sound })
+    // macOS 没有让横幅驻留的 API，只能提示用户自己去改通知样式；说一次就够。
+    if (sticky && platform === "darwin" && !warnedStickyUnsupported) {
+      warnedStickyUnsupported = true
+      log("macOS 无法让通知常驻：把「系统设置 → 通知 → 脚本编辑器」的样式改成「提醒」")
+    }
+    const commands = buildCommands(notification, { platform, sound, sticky })
     for (const command of commands) {
       if (await run(command, timeoutMs)) return
     }

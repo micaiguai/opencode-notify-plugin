@@ -46,6 +46,13 @@ test("buildToastXml 不带按钮与激活参数，点击只关闭", () => {
   const xml = buildToastXml({ title: "t", body: "b" }, true)
   assert.doesNotMatch(xml, /<actions/)
   assert.doesNotMatch(xml, /launch=/)
+  // 默认不驻留：reminder 场景会绕过勿扰，必须显式开 sticky 才用。
+  assert.doesNotMatch(xml, /scenario=/)
+})
+
+test("buildToastXml 在 sticky 时用 reminder 场景驻留", () => {
+  const xml = buildToastXml({ title: "t", body: "b" }, true, true)
+  assert.match(xml, /scenario="reminder"/)
 })
 
 test("encodePowerShell 输出可解码的 UTF-16LE base64", () => {
@@ -82,6 +89,19 @@ test("Linux 用 notify-send", () => {
   const [command] = buildCommands({ title: "t", body: "b" }, { platform: "linux", sound: true })
   assert.equal(command?.file, "notify-send")
   assert.deepEqual(command?.args.slice(-2), ["t", "b"])
+})
+
+test("sticky 在 Linux 上传 -t 0，在 macOS 上无效", () => {
+  const [loud] = buildCommands({ title: "t", body: "b" }, { platform: "linux", sound: true, sticky: true })
+  assert.deepEqual(loud?.args.filter((arg) => arg === "-t" || arg === "0"), ["-t", "0"])
+
+  const [plain] = buildCommands({ title: "t", body: "b" }, { platform: "linux", sound: true })
+  assert.ok(!plain?.args.includes("-t"))
+
+  // osascript 没有驻留 API：开不开 sticky 命令行都一样。
+  const [stickyMac] = buildCommands({ title: "t", body: "b" }, { platform: "darwin", sound: true, sticky: true })
+  const [plainMac] = buildCommands({ title: "t", body: "b" }, { platform: "darwin", sound: true })
+  assert.deepEqual(stickyMac?.args, plainMac?.args)
 })
 
 test("未知平台没有可用命令", () => {
