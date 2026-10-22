@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "type": "module",
   "main": "index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./package.json": "./package.json",
+    "./*": "./*"
+  },
   "files": [
     "index.ts",
     "src"
@@ -38,5 +43,9 @@
     "@opencode/plugin": "2.1.2",
     "@types/node": "^24.12.0",
     "typescript": "^5.9.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }
