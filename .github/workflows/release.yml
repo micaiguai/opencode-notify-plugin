@@ -59,4 +59,5 @@ jobs:
 
       - name: 发布到 npm
         if: steps.check.outputs.skip != 'true'
+        timeout-minutes: 10
         run: npm publish --access public
