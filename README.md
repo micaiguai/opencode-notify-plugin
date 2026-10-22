@@ -98,7 +98,8 @@ git clone https://github.com/micaiguai/opencode-notify-plugin ~/src/opencode-not
 
 | 字段 | 默认 | 说明 |
 | --- | --- | --- |
-| `sound` | `true` | `false` 时用静音 toast（`<audio silent="true"/>`）。仅 Windows 生效，macOS/Linux 上忽略 |
+| `sound` | `true` | `false` 时静音：Windows 用静音 toast（`<audio silent="true"/>`），macOS 不传 `sound name`。Linux 由通知守护进程决定，插件不做处理 |
+| `sticky` | `false` | `true` 时通知留在屏幕上直到用户处理：Windows 用 `scenario="reminder"`，Linux 传 `notify-send -t 0`。**macOS 无效**，见下 |
 | `events.sessionFinished` | `true` | 一轮结束（成功或失败）提醒，旧名 `sessionIdle` 仍兼容 |
 | `events.formCreated` | `true` | 提问/表单提醒 |
 | `events.permissionAsked` | `true` | 授权请求提醒 |
@@ -111,9 +112,10 @@ git clone https://github.com/micaiguai/opencode-notify-plugin ~/src/opencode-not
   - 走 `start` 而不是直接 spawn，是因为 `opencode run` 一轮结束就退出，直接 spawn 的子进程会被一起回收，toast 还没来得及弹。`start` 把 powershell 甩到独立进程，CLI 退出也能弹出来。
   - 通知内容（XML）通过环境变量传，避免命令行引号和编码问题。
   - AUMID 复用开始菜单里已注册的 `Windows PowerShell`，因此通知能进操作中心，但**通知上的应用名会显示为 "Windows PowerShell"**。
+  - `sticky: true` 时用 `<toast scenario="reminder">`，通知驻留到用户处理为止。代价是这个场景**能绕过勿扰模式**，所以默认关闭。
   - `start` 失败时退回直接调 `powershell.exe`。
-- **macOS**：`osascript -e 'display notification … '`，文本走 argv，不拼 AppleScript 源码。`sound` 配置在这里不生效（要响得加 `sound name`，属于产品取舍，目前没做）。
-- **Linux**：`notify-send`，`sound` 由通知守护进程决定，插件不做处理。
+- **macOS**：`osascript -e 'display notification … '`，文本走 argv，不拼 AppleScript 源码。`sound` 打开时多传一个参数 `Glass` 走 `sound name`（系统自带提示音），关闭时不传这个参数。注意：横幅仍然会在几秒后自动消失，要它一直留在屏幕上只能去 `系统设置 → 通知 → 脚本编辑器` 把样式改成「提醒」，那是系统侧设置，插件改不了。
+- **Linux**：`notify-send`，`sound` 由通知守护进程决定，插件不做处理。`sticky: true` 时传 `-t 0` 请求「不自动过期」，但是否真的常驻由守护进程决定——dunst 认，部分实现会忽略 0 退回默认时长。
 
 命令找不到或执行失败只记一行 `[opencode-notify-plugin] …` 日志到 stderr，不影响 opencode 主流程。
 
@@ -124,6 +126,7 @@ npm run typecheck              # tsc --noEmit
 npm test                       # node --test（Node 24 直接跑 .ts）
 npm run preview                # 真的弹一条“会话完成”通知
 npm run preview -- permission  # 弹一条“等待授权”通知
+npm run preview -- idle sticky # 预览驻留模式（macOS 上无效，只打一行提示）
 ```
 
 `preview` 是验证当前机器通知链路最快的方式：能弹出来，说明 `cmd → powershell → WinRT` 这一段没问题。
@@ -135,7 +138,9 @@ opencode v2 的 `~/.config/opencode/cli.json` 里已经有 `attention.notificati
 ## 已知限制
 
 - 点通知不会切回对应的终端/会话：需要给插件注册自己的 AUMID（开始菜单快捷方式）并做协议激活，目前没做。
-- Windows 上通知的应用名是 "Windows PowerShell"（共用已注册 AUMID 的代价）。
+- **通知图标不可自定义**：图标由发送 App 决定（macOS 是「脚本编辑器」的卷轴图标，Windows 是 "Windows PowerShell" 的图标）。插件靠标题里的 emoji（✅ ⚠️ ❓ 🔐）区分事件类型，这是不引入外部依赖前提下唯一可控的视觉标记。
+- **macOS 上通知无法常驻**：`osascript` 没有让横幅驻留的 API，`sticky` 在这个平台是空操作（会在 stderr 提示一次）。要驻留只能把通知样式改成「提醒」。
+- Windows 上通知的应用名是 "Windows PowerShell"（共用已注册 AUMID 的代价），且 `sticky` 用的 `reminder` 场景会绕过勿扰模式。
 - 事件流断开后不会自动重连，要等 opencode 重新加载插件。
 
 ## 目录
