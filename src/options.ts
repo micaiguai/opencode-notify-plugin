@@ -4,6 +4,8 @@ export interface Options {
   readonly formCreated: boolean
   readonly permissionAsked: boolean
   readonly sound: boolean
+  /** 通知留在屏幕上直到用户处理（macOS 无效）。 */
+  readonly sticky: boolean
 }
 
 export const defaults: Options = {
@@ -11,6 +13,7 @@ export const defaults: Options = {
   formCreated: true,
   permissionAsked: true,
   sound: true,
+  sticky: false,
 }
 
 /**
@@ -34,5 +37,6 @@ export function parseOptions(raw: Readonly<Record<string, unknown>> | undefined)
     formCreated: eventFlag("formCreated", defaults.formCreated),
     permissionAsked: eventFlag("permissionAsked", defaults.permissionAsked),
     sound: flag(raw?.["sound"], defaults.sound),
+    sticky: flag(raw?.["sticky"], defaults.sticky),
   }
 }

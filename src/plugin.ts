@@ -20,7 +20,7 @@ export function start(ctx: Context, overrides: StartOverrides = {}): () => void 
   // 留 2 秒余量：事件可能在 setup 前后同一瞬间产生；更老的才当成历史回放。
   const staleBefore = startedAt - 2_000
   const options = parseOptions(ctx.options)
-  const notifier = overrides.notifier ?? createNotifier({ sound: options.sound, log })
+  const notifier = overrides.notifier ?? createNotifier({ sound: options.sound, sticky: options.sticky, log })
   // 每个 location 一个实例、都会收到全部事件，去重/节流状态必须跨实例共享，
   // 否则同一个事件会被每个实例各提醒一次。
   const { seen, throttle } = sharedState()
