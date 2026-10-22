@@ -46,5 +46,17 @@ jobs:
 
       # 认证走 Trusted Publishing（OIDC），不使用 NPM_TOKEN。
       # 首次发布前需在 npmjs.com 或 `npm trust github` 注册本 workflow。
+      - name: 检查该版本是否已发布
+        id: check
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if npm view "opencode-notify-plugin@$version" version >/dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::opencode-notify-plugin@$version 已在 npm 上，跳过发布"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: 发布到 npm
+        if: steps.check.outputs.skip != 'true'
         run: npm publish --access public
