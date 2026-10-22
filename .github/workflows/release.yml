@@ -45,7 +45,9 @@ jobs:
           fi
 
       # 认证走 Trusted Publishing（OIDC），不使用 NPM_TOKEN。
-      # 首次发布前需在 npmjs.com 或 `npm trust github` 注册本 workflow。
+      # 发布前需在 npmjs.com 或 `npm trust github ...` 注册本 workflow。
+      # 这里只能查 registry 上已发布的版本：npm stage list 需要交互式认证，
+      # OIDC token 用不了，所以查不到「已暂存但未审批」的版本。
       - name: 检查该版本是否已发布
         id: check
         run: |
@@ -57,7 +59,38 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: 发布到 npm
+      # 用 staged publishing：CI 只把包提交到暂存区，2FA 审批由维护者在
+      # npmjs.com → Staged Packages 完成，审批后版本才公开可安装。
+      # 若同名版本已提交但未审批，重复运行会在本步骤失败——去暂存队列处理即可。
+      - name: 提交到 npm 暂存区
+        id: stage
         if: steps.check.outputs.skip != 'true'
         timeout-minutes: 10
-        run: npm publish --access public
+        run: |
+          set +e
+          out=$(npm stage publish --access public 2>&1)
+          code=$?
+          set -e
+          printf '%s\n' "$out"
+          [ "$code" -eq 0 ] || exit "$code"
+          stage_id=$(printf '%s\n' "$out" | sed -n 's/.*(staged with id \([0-9a-f-]\{36\}\)).*/\1/p' | tail -1)
+          echo "stage_id=$stage_id" >> "$GITHUB_OUTPUT"
+          if [ -z "$stage_id" ]; then
+            echo "::warning::未从输出中解析出 stage id，请到 npmjs.com → Staged Packages 查看"
+          fi
+
+      - name: 写入审批提示
+        if: steps.check.outputs.skip != 'true'
+        env:
+          STAGE_ID: ${{ steps.stage.outputs.stage_id }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          {
+            echo "### 已提交 npm 暂存，等待 2FA 审批"
+            echo
+            echo "- 版本：\`opencode-notify-plugin@$version\`"
+            echo "- stage id：\`${STAGE_ID:-未解析}\`"
+            echo "- 审批：npmjs.com → Staged Packages，或 \`npm stage approve ${STAGE_ID:-<stage-id>}\`"
+            echo "- 审批通过后版本才会公开可安装"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice::opencode-notify-plugin@$version 已提交暂存，等待人工审批后公开"
