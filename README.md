@@ -98,7 +98,7 @@ git clone https://github.com/micaiguai/opencode-notify-plugin ~/src/opencode-not
 
 | 字段 | 默认 | 说明 |
 | --- | --- | --- |
-| `sound` | `true` | `false` 时用静音 toast（`<audio silent="true"/>`）。仅 Windows 生效，macOS/Linux 上忽略 |
+| `sound` | `true` | `false` 时静音：Windows 用静音 toast（`<audio silent="true"/>`），macOS 不传 `sound name`。Linux 由通知守护进程决定，插件不做处理 |
 | `events.sessionFinished` | `true` | 一轮结束（成功或失败）提醒，旧名 `sessionIdle` 仍兼容 |
 | `events.formCreated` | `true` | 提问/表单提醒 |
 | `events.permissionAsked` | `true` | 授权请求提醒 |
@@ -112,7 +112,7 @@ git clone https://github.com/micaiguai/opencode-notify-plugin ~/src/opencode-not
   - 通知内容（XML）通过环境变量传，避免命令行引号和编码问题。
   - AUMID 复用开始菜单里已注册的 `Windows PowerShell`，因此通知能进操作中心，但**通知上的应用名会显示为 "Windows PowerShell"**。
   - `start` 失败时退回直接调 `powershell.exe`。
-- **macOS**：`osascript -e 'display notification … '`，文本走 argv，不拼 AppleScript 源码。`sound` 配置在这里不生效（要响得加 `sound name`，属于产品取舍，目前没做）。
+- **macOS**：`osascript -e 'display notification … '`，文本走 argv，不拼 AppleScript 源码。`sound` 打开时多传一个参数 `Glass` 走 `sound name`（系统自带提示音），关闭时不传这个参数。注意：横幅仍然会在几秒后自动消失，要它一直留在屏幕上只能去 `系统设置 → 通知 → 脚本编辑器` 把样式改成「提醒」，那是系统侧设置，插件改不了。
 - **Linux**：`notify-send`，`sound` 由通知守护进程决定，插件不做处理。
 
 命令找不到或执行失败只记一行 `[opencode-notify-plugin] …` 日志到 stderr，不影响 opencode 主流程。

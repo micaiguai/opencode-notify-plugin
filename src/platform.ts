@@ -17,6 +17,9 @@ export interface BuildOptions {
 export const MAX_TITLE = 80
 export const MAX_BODY = 240
 
+// macOS 系统自带提示音，改成列表里的名字才响；随便写会静默失败。
+export const MACOS_SOUND = "Glass"
+
 // Windows PowerShell 在开始菜单里注册过的 AUMID。用它创建 toaster，
 // 系统才会把通知真正投递到操作中心；随便拼一个 AUMID 会被静默丢弃。
 const WINDOWS_APP_ID = String.raw`{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe`
@@ -107,6 +110,7 @@ export function buildCommands(notification: Notification, options: BuildOptions)
     }
     case "darwin":
       // 用 argv 传值，避免把标题拼进 AppleScript 源码里做转义。
+      // 声音名也走 argv：多传一个参数就有声、少传就静音，不必拼两套脚本源码。
       return [
         {
           file: "osascript",
@@ -114,11 +118,20 @@ export function buildCommands(notification: Notification, options: BuildOptions)
             "-e",
             "on run argv",
             "-e",
+            "if (count of argv) > 2 then",
+            "-e",
+            "display notification (item 1 of argv) with title (item 2 of argv) sound name (item 3 of argv)",
+            "-e",
+            "else",
+            "-e",
             "display notification (item 1 of argv) with title (item 2 of argv)",
+            "-e",
+            "end if",
             "-e",
             "end run",
             clip(notification.body, MAX_BODY),
             clip(notification.title, MAX_TITLE),
+            ...(options.sound ? [MACOS_SOUND] : []),
           ],
         },
       ]
